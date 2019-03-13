@@ -1,3 +1,6 @@
+#Author: James Smith
+#Github: JamesSmith1202
+
 import sqlite3, hashlib, os, subprocess  #enable control of an sqlite database
 
 f = None
