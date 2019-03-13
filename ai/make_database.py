@@ -5,11 +5,14 @@ import svr_lib
 import json
 import math
 import os
-import db_builder
 import progressbar
+import sqlite3, hashlib, os, subprocess  #enable control of an sqlite database
 
 ALGOS_TO_DOWNLOAD = 10
 DATABASE_NAME = "replays"
+
+global f
+f = os.path.abspath(os.path.dirname(__file__)) + "/data/{}.db".format(DATABASE_NAME)
 
 # returns json of replay
 def get_replay(match_id):
@@ -35,53 +38,52 @@ def get_winning_match_ids(algo_id):
             winningMatches.append(match['id'])
     return winningMatches
 
-#returns a dictionary of replays
-def get_winning_replays():
-    print("Started: Getting winning replays...")
-    replay_dict = {}
+def generate_database():
+    print("Started: Generating SQL database...")
+    os.system("sudo mkdir {0} ; sudo chmod 0777 {0}".format("data"))
+    db = sqlite3.connect(f) #creates db if doesnt exist, and connect
+    c=db.cursor() #facilitates b ops
+    c.execute("CREATE TABLE IF NOT EXISTS replays(algo_id INTEGER, replay BLOB)") #create user table
+    db.commit() #save changes
+    db.close()
+    print("Finished: SQL database generated")
+
+def insert_replay(algo_id, replay):
+    db = sqlite3.connect(f)
+    c = db.cursor()
+    c.execute("INSERT INTO replays VALUES(%d, '%s')" % (algo_id, replay))
+    db.commit()
+    db.close()
+
+    #downloads winning replays as a SQL database
+def download_winning_replays():
+    
+    generate_database()
+    
     top_algos = get_top_algos(ALGOS_TO_DOWNLOAD)
 
     print("Started: Gathering winning match IDs")
     replays_to_download = 0
     winning_match_ids = {}
-    for algo_id in top_algos:
-        winning_match_ids[algo_id] = get_winning_match_ids(top_algos[algo_id])
+    for algo_name in top_algos:
+        algo_id = top_algos[algo_name]
+        winning_match_ids[algo_id] = get_winning_match_ids(algo_id)
         replays_to_download += len(winning_match_ids[algo_id])
     print("Finished: Winning match IDs gathered")
 
-    print("Started: Downloading replays...")
+    print("Started: Downloading replays to database...")
     i = 0
     bar = progressbar.ProgressBar(maxval=replays_to_download, widgets=[progressbar.Bar(u"\u2588", '[', ']'), ' ', progressbar.Timer(), ' ', progressbar.ETA() , ' ', progressbar.Percentage()])
     bar.start()
-    for algo_id in top_algos:
-        winning_replays = []
+    for algo_name in top_algos:
+        algo_id = top_algos[algo_name]
         for match_id in winning_match_ids[algo_id]:
-            winning_replays.append(get_replay(match_id))
+            insert_replay(algo_id, get_replay(match_id))
             i += 1
             bar.update(i)
-        replay_dict[top_algos[algo_id]] = winning_replays
     bar.finish()
-    print("Finished: Replays downloaded")
-    
-    print("Finished: Replays are held in RAM")
-    return replay_dict
-
-#downloads winning replays as a SQL database
-def download_winning_replays():
-    print("Started: Downloading winning replays from top players...")
-    replays = get_winning_replays()
-    path = "/database"
-    os.system("sudo mkdir {}".format(path))
-    db_builder.generate_database()
-    bar = progressbar.ProgressBar(maxval=len(replays), widgets=[progressbar.Bar(u"\u2588", '[', ']'), ' ', progressbar.Timer(), ' ', progressbar.ETA() , ' ', progressbar.Percentage()])
-    bar.start()
-    insert_success = db_builder.insert_replays(replays, bar)
-    bar.finish()
-    if not insert_success:
-        print("Finished: Inserting into database failed")
-    else:
-        print("Finished: database is under './database/{}".format(DATABASE_NAME))
-    return insert_success
+    print("Finished: database is under './database/{}".format(DATABASE_NAME))
 
 if __name__ == '__main__':
+    print(f)
     download_winning_replays()
