@@ -134,5 +134,5 @@ Training
 Blog
 About
 
-.db
-.pyc
+*.db
+*.pyc

@@ -8,7 +8,7 @@ import os
 import db_builder
 import progressbar
 
-ALGOS_TO_DOWNLOAD = 20
+ALGOS_TO_DOWNLOAD = 10
 DATABASE_NAME = "replays"
 
 # returns json of replay
@@ -71,7 +71,7 @@ def download_winning_replays():
     print("Started: Downloading winning replays from top players...")
     replays = get_winning_replays()
     path = "/database"
-    os.mkdir(path)
+    os.system("sudo mkdir {}".format(path))
     db_builder.generate_database()
     bar = progressbar.ProgressBar(maxval=len(replays), widgets=[progressbar.Bar(u"\u2588", '[', ']'), ' ', progressbar.Timer(), ' ', progressbar.ETA() , ' ', progressbar.Percentage()])
     bar.start()
